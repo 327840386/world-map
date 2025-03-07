@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive World Map</title>
+  <style>
+    #chartdiv {
+      width: 100%;
+      height: 500px;
+    }
+  </style>
+</head>
+<body>
+  <div id="chartdiv"></div>
+
+  <!-- Resources -->
+  <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/map.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/geodata/worldLow.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/geodata/usaLow.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+
+  <!-- Chart code -->
+  <script>
+    am5.ready(function() {
+      // Create root element
+      var root = am5.Root.new("chartdiv");
+
+      // Set themes
+      root.setThemes([
+        am5themes_Animated.new(root)
+      ]);
+
+      // Create the map chart
+      var chart = root.container.children.push(am5map.MapChart.new(root, {
+        panX: "translateX",
+        panY: "translateY",
+        projection: am5map.geoMercator()
+      }));
+
+      // Create main polygon series for countries
+      var polygonSeries = chart.series.push(am5map.MapPolygonSeries.new(root, {
+        geoJSON: am5geodata_worldLow,
+        exclude: ["AQ"] // Exclude Antarctica
+      }));
+
+      polygonSeries.mapPolygons.template.setAll({
+        tooltipText: "{name}",
+        toggleKey: "active",
+        interactive: true
+      });
+
+      polygonSeries.mapPolygons.template.states.create("hover", {
+        fill: root.interfaceColors.get("primaryButtonHover")
+      });
+
+      polygonSeries.mapPolygons.template.states.create("active", {
+        fill: root.interfaceColors.get("primaryButtonHover")
+      });
+
+      // US Series
+      var polygonSeriesUS = chart.series.push(am5map.MapPolygonSeries.new(root, {
+        geoJSON: am5geodata_usaLow
+      }));
+
+      polygonSeriesUS.mapPolygons.template.setAll({
+        tooltipText: "{name}",
+        toggleKey: "active",
+        interactive: true
+      });
+
+      var colors = am5.ColorSet.new(root, {});
+      polygonSeriesUS.mapPolygons.template.set("fill", colors.getIndex(3));
+
+      polygonSeriesUS.mapPolygons.template.states.create("hover", {
+        fill: root.interfaceColors.get("primaryButtonHover")
+      });
+
+      polygonSeriesUS.mapPolygons.template.states.create("active", {
+        fill: root.interfaceColors.get("primaryButtonHover")
+      });
+
+      // Add zoom control
+      var zoomControl = chart.set("zoomControl", am5map.ZoomControl.new(root, {}));
+      zoomControl.homeButton.set("visible", true);
+
+      // Set clicking on "water" to zoom out
+      chart.chartContainer.get("background").events.on("click", function() {
+        chart.goHome();
+      });
+
+      // Function to save selected countries to localStorage
+      function saveSelectedCountries(selectedCountries) {
+        localStorage.setItem("selectedCountries", JSON.stringify(selectedCountries));
+      }
+
+      // Function to load selected countries from localStorage
+      function loadSelectedCountries() {
+        var selectedCountries = localStorage.getItem("selectedCountries");
+        return selectedCountries ? JSON.parse(selectedCountries) : [];
+      }
+
+      // Load previously selected countries
+      var selectedCountries = loadSelectedCountries();
+
+      // Apply the loaded selected countries
+      selectedCountries.forEach(function(countryId) {
+        var polygon = polygonSeries.getPolygonById(countryId);
+        if (polygon) {
+          polygon.set("active", true);
+        }
+      });
+
+      // Listen for country selection changes
+      polygonSeries.mapPolygons.template.events.on("active", function(ev) {
+        var polygon = ev.target;
+        var countryId = polygon.dataItem.dataContext.id;
+        var selectedCountries = loadSelectedCountries();
+
+        if (polygon.get("active")) {
+          if (!selectedCountries.includes(countryId)) {
+            selectedCountries.push(countryId);
+          }
+        } else {
+          selectedCountries = selectedCountries.filter(function(id) {
+            return id !== countryId;
+          });
+        }
+
+        saveSelectedCountries(selectedCountries);
+      });
+
+      // Make stuff animate on load
+      chart.appear(1000, 100);
+    }); // end am5.ready()
+  </script>
+</body>
+</html>
+    
+  
+    
+    
+    
+    
