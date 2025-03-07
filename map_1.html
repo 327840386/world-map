@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive World Map</title>
+  <style>
+    #chartdiv {
+      width: 100%;
+      height: 500px;
+    }
+  </style>
+</head>
+<body>
+  <div id="chartdiv"></div>
+
+  <!-- Resources -->
+  <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/map.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/geodata/worldLow.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/geodata/usaLow.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+
+  <!-- Chart code -->
+  <script>
+    am5.ready(function() {
+      // Create root element
+      var root = am5.Root.new("chartdiv");
+
+      // Set themes
+      root.setThemes([
+        am5themes_Animated.new(root)
+      ]);
+
+      // Create the map chart
+      var chart = root.container.children.push(am5map.MapChart.new(root, {
+        panX: "translateX",
+        panY: "translateY",
+        projection: am5map.geoMercator()
+      }));
+
+      // Create main polygon series for countries
+      var polygonSeries = chart.series.push(am5map.MapPolygonSeries.new(root, {
+        geoJSON: am5geodata_worldLow,
+        exclude: ["AQ"] // Exclude Antarctica
+      }));
+
+      polygonSeries.mapPolygons.template.setAll({
+        tooltipText: "{name}",
+        toggleKey: "active",
+        interactive: true
+      });
+
+      polygonSeries.mapPolygons.template.states.create("hover", {
+        fill: root.interfaceColors.get("primaryButtonHover")
+      });
+
+      polygonSeries.mapPolygons.template.states.create("active", {
+        fill: root.interfaceColors.get("primaryButtonHover")
+      });
+
+      // 从服务器获取选中的国家数据
+      function loadSelectedCountries() {
+        fetch("http://localhost:3000/selected-countries")
+          .then(response => response.json())
+          .then(selectedCountries => {
+            selectedCountries.forEach(countryId => {
+              var polygon = polygonSeries.getPolygonById(countryId);
+              if (polygon) {
+                polygon.set("active", true);
+              }
+            });
+          });
+      }
+
+      // 保存选中的国家数据到服务器
+      function saveSelectedCountries(selectedCountries) {
+        fetch("http://localhost:3000/selected-countries", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(selectedCountries)
+        });
+      }
+
+      // 加载选中的国家数据
+      loadSelectedCountries();
+
+      // 监听国家选择事件
+      polygonSeries.mapPolygons.template.events.on("active", function(ev) {
+        var polygon = ev.target;
+        var countryId = polygon.dataItem.dataContext.id;
+        var selectedCountries = [];
+
+        // 获取当前选中的国家
+        polygonSeries.mapPolygons.each(function(polygon) {
+          if (polygon.get("active")) {
+            selectedCountries.push(polygon.dataItem.dataContext.id);
+          }
+        });
+
+        // 保存选中的国家数据
+        saveSelectedCountries(selectedCountries);
+      });
+
+      // Make stuff animate on load
+      chart.appear(1000, 100);
+    });
+  </script>
+</body>
+</html>
+    
+  
+    
+    
+    
+    
